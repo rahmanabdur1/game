@@ -1,103 +1,256 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface University {
+  name: string;
+  cost: string;
+  deadline: string;
+  applyLink: string;
+  description: string;
+  country: string;
+  city: string;
+  courseDuration: string;
+  intakeMonths: string;
+  requirements: string;
+  ranking: string;
+  scholarshipAvailable: string;
+  languageOfInstruction: string;
+  website: string;
+  contactEmail: string;
+}
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [page, setPage] = useState<"chat" | "finder">("chat");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  // Chat states
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+
+  // Search states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<University[]>([]);
+  const [isLoadingSearch, setIsLoadingSearch] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleChatSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userMessage: ChatMessage = { role: "user", content: chatInput };
+    const updatedHistory = [...chatHistory, userMessage];
+    setChatHistory(updatedHistory);
+    setChatInput("");
+    setIsLoadingChat(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: updatedHistory }),
+      });
+
+      if (!res.ok) throw new Error(`Error: ${res.status}`);
+
+      const data = await res.json();
+
+      if (data.result?.content) {
+        setChatHistory((prev) => [...prev, { role: "assistant", content: data.result.content }]);
+      } else {
+        throw new Error("No response from AI");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to get AI response. Please try again.");
+    } finally {
+      setIsLoadingChat(false);
+    }
+  }
+
+  async function handleSearchSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    setIsLoadingSearch(true);
+    setError(null);
+    setSearchResults([]);
+
+    try {
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: searchQuery }),
+      });
+
+      if (!res.ok) throw new Error(`Error: ${res.status}`);
+
+      const data = await res.json();
+
+      if (Array.isArray(data.results)) {
+        setSearchResults(data.results);
+      } else {
+        throw new Error("Invalid data format from AI");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to get search results. Try refining your query.");
+    } finally {
+      setIsLoadingSearch(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-3xl flex flex-col h-[80vh]">
+        {/* Navigation */}
+        <nav className="flex space-x-4 mb-6">
+          <button
+            className={`px-4 py-2 rounded-full font-semibold transition ${
+              page === "chat" ? "bg-blue-600 text-white" : "bg-gray-200 hover:bg-gray-300"
+            }`}
+            onClick={() => {
+              setPage("chat");
+              setError(null);
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            AI Chat Assistant
+          </button>
+          <button
+            className={`px-4 py-2 rounded-full font-semibold transition ${
+              page === "finder" ? "bg-green-600 text-white" : "bg-gray-200 hover:bg-gray-300"
+            }`}
+            onClick={() => {
+              setPage("finder");
+              setError(null);
+            }}
           >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+            AI University Finder
+          </button>
+        </nav>
+
+        {/* Chat Page */}
+        {page === "chat" && (
+          <section className="flex flex-col flex-1 mt-2 overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 border rounded-md bg-gray-50">
+              {chatHistory.length === 0 && <p className="text-center text-gray-500">Find Your universities based on the following query:
+                should have 'name', 'cost', 'deadline', 'applyLink', and 'description' fields. etc</p>}
+
+              {chatHistory.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`max-w-[70%] p-3 rounded-2xl ${
+                    msg.role === "user" ? "bg-blue-600 text-white self-end rounded-br-none" : "bg-white text-gray-900 rounded-bl-none"
+                  }`}
+                >
+                  {msg.content.split("\n").map((line, idx) => (
+                    <p key={idx}>{line}</p>
+                  ))}
+                </div>
+              ))}
+
+              {isLoadingChat && <p className="text-gray-500 animate-pulse">AI is thinking...</p>}
+            </div>
+            {error && <p className="text-red-600 text-center mt-2">{error}</p>}
+            <form onSubmit={handleChatSubmit} className="flex mt-4 space-x-2">
+              <input
+                type="text"
+                className="flex-grow p-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Type your message..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                disabled={isLoadingChat}
+              />
+              <button
+                type="submit"
+                disabled={isLoadingChat}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 rounded-full font-semibold"
+              >
+                Send
+              </button>
+            </form>
+          </section>
+        )}
+
+        {/* Finder Page */}
+        {page === "finder" && (
+          <section className="flex flex-col flex-1 overflow-hidden">
+            <form onSubmit={handleSearchSubmit} className="flex space-x-2 mb-4">
+              <input
+                type="text"
+                className="flex-grow p-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+                placeholder="Find universities (e.g. affordable CS courses in Germany)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                disabled={isLoadingSearch}
+              />
+              <button
+                type="submit"
+                disabled={isLoadingSearch}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 rounded-full font-semibold"
+              >
+                Search
+              </button>
+            </form>
+            {error && <p className="text-red-600 text-center mb-2">{error}</p>}
+
+            <div className="overflow-y-auto flex-1 space-y-4">
+              {isLoadingSearch && <p className="text-gray-500 animate-pulse text-center">Searching...</p>}
+
+              {!isLoadingSearch && searchResults.length === 0 && !error && (
+                <p className="text-center text-gray-500">Your search results will appear here.</p>
+              )}
+
+              {searchResults.map((uni, i) => (
+                <div
+                  key={i}
+                  className="bg-white p-4 rounded-lg shadow-md border border-gray-300"
+                >
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    {uni.name} - {uni.city}, {uni.country}
+                  </h3>
+                  <p className="mt-1 text-gray-700">{uni.description}</p>
+                  <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-600">
+                    <span><strong>Cost:</strong> {uni.cost}</span>
+                    <span><strong>Deadline:</strong> {uni.deadline}</span>
+                    <span><strong>Duration:</strong> {uni.courseDuration}</span>
+                    <span><strong>Intakes:</strong> {uni.intakeMonths}</span>
+                    <span><strong>Ranking:</strong> {uni.ranking}</span>
+                    <span><strong>Language:</strong> {uni.languageOfInstruction}</span>
+                    <span><strong>Scholarship:</strong> {uni.scholarshipAvailable}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-500"><strong>Requirements:</strong> {uni.requirements}</p>
+                  <div className="mt-3 flex flex-col space-y-1 text-sm">
+                    {uni.website && (
+                      <a href={uni.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                        Official Website
+                      </a>
+                    )}
+                    {uni.contactEmail && <span>Contact: {uni.contactEmail}</span>}
+                  </div>
+                  {uni.applyLink && (
+                    <a
+                      href={uni.applyLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block mt-3 px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700"
+                    >
+                      Apply Now
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </main>
   );
 }
