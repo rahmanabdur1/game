@@ -141,7 +141,7 @@ export default function Home() {
           <section className="flex flex-col flex-1 mt-2 overflow-hidden">
             <div className="flex-1 overflow-y-auto p-4 space-y-4 border rounded-md bg-gray-50">
               {chatHistory.length === 0 && <p className="text-center text-gray-500">Find Your universities based on the following query:
-                should have 'name', 'cost', 'deadline', 'applyLink', and 'description' fields. etc</p>}
+                should have name, cost, deadline, applyLink, and description fields. etc</p>}
 
               {chatHistory.map((msg, i) => (
                 <div

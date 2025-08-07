@@ -48,6 +48,9 @@ Respond only with valid JSON, no explanations or extra text.`;
 
     let data;
     try {
+      if (typeof jsonResponse !== "string") {
+        throw new Error("AI did not return a string");
+      }
       data = JSON.parse(jsonResponse);
     } catch {
       return NextResponse.json({ error: "AI did not return valid JSON" }, { status: 500 });
